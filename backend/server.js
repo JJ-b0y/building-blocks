@@ -3,19 +3,26 @@ import dotenv from 'dotenv';  // Import the dotenv package to manage environment
 import cors from 'cors'; // Import the cors package to enable Cross-Origin Resource Sharing (CORS)
 import notesRoutes from './routes/notesRoutes.js';
 import { connectDB } from './src/config/db.js';
+import path from 'path'; // Import the path module to work with file and directory paths
 
 dotenv.config();  // Load environment variables from .env file
 
 const app = express();  // Create an instance of an Express application
 const PORT = process.env.PORT || 5001; // Use the PORT from environment variables or default to 5001
 
-app.use(cors(   // Enable CORS for all routes and origins
-  {
-    origin: 'http://localhost:5173' // Allow requests from this origin
-    // methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
-    // credentials: true, // Allow credentials (cookies, authorization headers, etc.)
-  }
-));
+// centralizing the localhost for frontend and backendafter the application is created
+const __dirname = path.resolve(); // Get the absolute path of the current directory
+
+// Enable CORS only in development mode to allow requests from the frontend running on a different origin (localhost)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors(   // Enable CORS for all routes and origins
+    {
+      origin: 'http://localhost:5173' // Allow requests from this origin
+      // methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allow these HTTP methods
+      // credentials: true, // Allow credentials (cookies, authorization headers, etc.)
+    }
+  ));
+};
 
 app.use(express.json());  // Middleware to parse JSON request bodies: req.body (needed for POST and PUT requests)
 
@@ -26,6 +33,16 @@ app.use((req, res, next) => {
 
 app.use('/api/notes', notesRoutes);     // Use the notesRoutes.js file for any requests to /api/notes which we have imported above from routes folder (file path: backend/routes/notesRoutes.js)
 // app.use('api/services', servicesRoutes);
+
+if (process.env.NODE_ENV === 'production') {
+
+  app.use(express.static(path.join(__dirname, '../frontend/dist'))); // Serve static files from the frontend's dist directory
+
+  // Handle all GET requests that don't match any other routes
+  app.get('*', (req, res) => { 
+    res.sendFile(path.join(__dirname, '../frontend/dist', 'index.html')); // Serve the frontend's index.html for any unmatched routes
+  });
+};
 
 connectDB().then(() => {  // Call the connectDB function to establish a connection to the database before starting the server
   app.listen(PORT, () => {  // Start the server and listen on the specified PORT
